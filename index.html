@@ -1,17 +1,363 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App Mini Soccer List Player</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/icon-192.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="HandheldFriendly" content="true">
+<meta name="MobileOptimized" content="320">
+
+  <title>Mini Soccer List — Tap Tap</title>
+  <style>
+    
+    :root{
+      --bg:#f7fbff; --card:#fff; --ink:#042a3a; --muted:#667; --blue:#1e88e5;
+      --ok:#2e7d32; --warn:#ef6c00; --danger:#d32f2f; --chip:#e6eef6;
+      font-family: Inter, system-ui, Arial;
+    }
+    html{font-size:16px}
+    body{max-width:760px;margin:18px auto;padding:14px;background:var(--bg);color:var(--ink);line-height:1.4}
+    h1{text-align:center;font-size:22px;margin:0 0 10px}
+    .summary{background:var(--card);border:1px solid #e6eef6;border-radius:12px;padding:10px 12px;margin-bottom:12px;text-align:center;font-weight:600}
+
+    /* CARD */
+    .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.05);}
+
+    /* BIG ACTIONS */
+    .actions{display:grid;gap:10px;margin-top:8px}
+    .btn{
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      border:none;border-radius:12px; padding:14px 18px; font-size:1.05rem;
+      background:var(--blue); color:#fff; cursor:pointer; min-height:52px;
+    }
+    .btn.secondary{background:#607d8b}
+    .btn.ok{background:var(--ok)}
+    .btn.warn{background:var(--warn)}
+    .btn.danger{background:var(--danger)}
+    .btn.ghost{background:#edf4fb;color:#0b3a52}
+    .btn:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+
+    /* STATUS CHIPS */
+    .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+    .chip{
+      background:var(--chip); color:#0b3a52; border-radius:999px; padding:6px 10px; font-weight:600;
+      display:inline-flex; align-items:center; gap:6px; font-size:.95rem;
+    }
+    .chip.full{background:#ffe8e6;color:#7a1212}
+
+    /* LISTS */
+    .lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+    ul{list-style:none;margin:8px 0 0;padding:0}
+    .item{border-bottom:1px dashed #e7eef5;padding:10px 6px}
+    .item-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .item button{min-height:36px;padding:8px 10px;border-radius:8px}
+
+    /* ADMIN */
+    details.admin{margin-top:12px}
+    details.admin>summary{cursor:pointer; user-select:none; padding:10px 12px; background:#edf4fb; border-radius:10px; font-weight:600}
+    .admin-bar{display:flex;gap:8px;overflow-x:auto;padding:8px 0; -webkit-overflow-scrolling:touch}
+    .admin-bar::-webkit-scrollbar{height:6px}
+    .admin-bar::-webkit-scrollbar-thumb{background:#ccd8e6;border-radius:999px}
+    .admin-grid{display:grid;gap:8px;margin-top:8px}
+    .admin-grid input, .admin-grid select{
+      padding:10px 12px;border:1px solid #e6eef6;border-radius:10px;min-height:44px;font-size:1rem;box-sizing:border-box;width:100%;
+    }
+
+    /* MODAL */
+    .modal{position:fixed;inset:0;background:rgba(2,16,26,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .modal.open{display:flex}
+    .sheet{background:var(--card); width:100%; max-width:420px; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,.2)}
+    .sheet header{padding:14px 16px;border-bottom:1px solid #eef4f9;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+    .sheet .body{padding:14px 16px;display:grid;gap:10px}
+    .sheet .row{display:grid;gap:8px}
+    .sheet input, .sheet select{
+      padding:12px;border:1px solid #e6eef6;border-radius:10px;min-height:44px;font-size:1rem;box-sizing:border-box;width:100%;
+    }
+    .sheet footer{padding:12px 16px;border-top:1px solid #eef4f9;display:flex;gap:10px;justify-content:flex-end}
+
+    /* TOAST */
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:#073b21;color:#e9fff3;padding:10px 14px;border-radius:999px;font-weight:600;display:none;z-index:60}
+    .toast.show{display:block}
+
+    /* SMALL DEVICES */
+    @media (max-width:400px){
+      .btn{min-height:56px}
+      .lists{grid-template-columns:1fr}
+    }
+  </style>
 </head>
 <body>
-    <div class="iframe-container">
-        <iframe id="app-iframe" src="https://script.google.com/macros/s/AKfycbzm6FT2JLIHCDvd-EtUFj1AeUPPdrBzam4M8qFzjDxHknSZ8rHcGgAsc1HFyb2OtrI/exec" frameborder="0"></iframe>
+  <h1>Open List Fun Game</h1>
+
+  <!-- SUMMARY & STATUS -->
+  <div id="summary" class="summary">Loading data...</div>
+  <div class="chips">
+    <div id="chipPlayers" class="chip">⚽ Pemain: 0/0</div>
+    <div id="chipKeepers" class="chip">🧤 Kiper: 0</div>
+    <div id="chipWaiting" class="chip">⏳ Waiting: 0/0</div>
+  </div>
+
+  <!-- BIG ACTIONS (TAP-TAP) -->
+  <div class="card" style="margin-top:12px">
+    <div class="actions">
+      <button class="btn ok" id="tapJoinPlayer" aria-label="Join sebagai Pemain">⚽ <span>Join Pemain</span></button>
+      <button class="btn warn" id="tapJoinKeeper" aria-label="Join sebagai Kiper">🧤 <span>Join Kiper</span></button>
+      <button class="btn ghost" id="tapJoinWaiting" aria-label="Join Waiting">⏳ <span>Join Waiting</span></button>
     </div>
-    <script src="app.js"></script>
+  </div>
+
+  <!-- LISTS -->
+  <div class="lists">
+    <div class="card">
+      <strong>List Pemain (<span id="countPlayers">0</span>)</strong>
+      <ul id="players"></ul>
+    </div>
+    <div class="card">
+      <strong>List Kiper (<span id="countKeepers">0</span>)</strong>
+      <ul id="keepers"></ul>
+    </div>
+    <div class="card">
+      <strong>Waiting List (<span id="countWaiting">0</span>)</strong>
+      <ul id="waiting"></ul>
+    </div>
+  </div>
+
+  <!-- ADMIN TOOLS (COLLAPSIBLE) -->
+  <details class="admin">
+    <summary>🔐 Admin Tools</summary>
+    <div class="card" style="margin-top:10px">
+      <div class="admin-grid">
+        <input id="adminPw" type="password" placeholder="Admin password (Enter untuk verifikasi)">
+        <div style="display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+          <input id="teamName" placeholder="Nama Tim">
+          <input id="place" placeholder="Tempat / URL">
+          <input id="kickoff" placeholder="06.00 - 08.00">
+          <input id="dateEvent" placeholder="dd/mm/yyyy">
+          <input id="maxPlayers" type="number" min="1" value="28" placeholder="Max pemain">
+          <input id="maxWaiting" type="number" min="0" value="3" placeholder="Max waiting">
+        </div>
+        <div class="admin-bar">
+          <button id="saveSettings" class="btn secondary hidden">💾 Save</button>
+          <button id="resetAll" class="btn danger hidden">Reset</button>
+          <button id="exportJson" class="btn secondary hidden">Export JSON</button>
+          <button id="importJson" class="btn secondary hidden">Import JSON</button>
+          <button id="exportCsv" class="btn secondary hidden">Export CSV</button>
+          <button id="exportPdf" class="btn secondary hidden">Export PDF</button>
+        </div>
+        <div class="small">
+          📍 <span id="displayPlace">-</span> &nbsp;|&nbsp; 🕣 <span id="displayKickoff">-</span> &nbsp;|&nbsp; 📅 <span id="displayDate">-</span>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- MODAL JOIN -->
+  <div id="joinModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+    <div class="sheet">
+      <header>
+        <div id="joinTitle">Masuk</div>
+        <button id="modalClose" class="btn ghost" style="min-height:36px">✖</button>
+      </header>
+      <div class="body">
+        <div class="row">
+          <label for="name" style="font-weight:600">Nama</label>
+          <input id="name" placeholder="Nama Kamu">
+        </div>
+        <div class="row">
+          <label for="phone" style="font-weight:600">No HP (opsional)</label>
+          <input id="phone" placeholder="08xxxxxxxxxx">
+        </div>
+      </div>
+      <footer>
+        <button id="btnCancel" class="btn ghost">Batal</button>
+        <button id="btnConfirm" class="btn ok">✅ Simpan</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast" role="status" aria-live="polite">Tersimpan</div>
+
+  <!-- OPTIONAL (PDF Export via screenshot) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+
+  <script>
+    // ====== STATE ======
+    let isAdmin=false;
+    let currentJoinType=null; // 'player' | 'keeper' | 'waiting'
+    const qs=id=>document.getElementById(id);
+
+    // ====== HELPERS ======
+    function toast(msg){ const t=qs('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
+    function openModal(title){ qs('joinTitle').textContent=title; qs('joinModal').classList.add('open'); qs('name').focus(); }
+    function closeModal(){ qs('joinModal').classList.remove('open'); qs('name').value=''; qs('phone').value=''; currentJoinType=null; }
+    function formatTime(ts){ if(!ts) return ''; const d=new Date(ts); if(isNaN(d)) return ts; const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+    function canJoin(){ const last=Number(localStorage.getItem('last_join_ts')||'0'); if(Date.now()-last<4000) return false; localStorage.setItem('last_join_ts',String(Date.now())); return true; }
+
+    function setAdminVisibility(){
+      ['saveSettings','resetAll','exportJson','importJson','exportCsv','exportPdf'].forEach(id=>qs(id).classList.toggle('hidden',!isAdmin));
+    }
+
+    // ====== RENDER ======
+    function render(data){
+      const s=data.settings||{};
+      // fill admin fields
+      qs('teamName').value=s.TeamName||'';
+      qs('place').value=s.Place||'';
+      qs('kickoff').value=s.Kickoff||'';
+      qs('dateEvent').value=s.Date||'';
+
+      // small info display
+      const placeEl=qs('displayPlace'); placeEl.textContent='-';
+      if(s.Place){
+        placeEl.textContent='';
+        if(/^https?:\/\//i.test(s.Place.trim())){
+          const a=document.createElement('a'); a.href=s.Place; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='Lihat Lokasi'; placeEl.appendChild(a);
+        } else { placeEl.textContent=s.Place; }
+      }
+      qs('displayKickoff').textContent=s.Kickoff||'-';
+      qs('displayDate').textContent=s.Date||'-';
+
+      // counts
+      const maxP=Number(qs('maxPlayers').value)||28;
+      const maxW=Number(qs('maxWaiting').value)||3;
+
+      qs('countPlayers').textContent=data.players.length;
+      qs('countKeepers').textContent=data.keepers.length;
+      qs('countWaiting').textContent=data.waiting.length;
+
+      qs('chipPlayers').textContent=`⚽ Pemain: ${data.players.length}/${maxP}`;
+      qs('chipKeepers').textContent=`🧤 Kiper: ${data.keepers.length}`;
+      qs('chipWaiting').textContent=`⏳ Waiting: ${data.waiting.length}/${maxW}`;
+
+      // full badge
+      qs('chipPlayers').classList.toggle('full', data.players.length>=maxP);
+      qs('chipWaiting').classList.toggle('full', data.waiting.length>=maxW);
+
+      const full = data.players.length>=maxP ? ' • FULL' : '';
+      qs('summary').textContent=`${s.TeamName? s.TeamName+' — ': ''}Pemain: ${data.players.length}/${maxP}${full} • Kiper: ${data.keepers.length} • Waiting: ${data.waiting.length}/${maxW}`;
+
+      renderList('players', data.players);
+      renderList('keepers', data.keepers);
+      renderList('waiting', data.waiting);
+    }
+
+    function renderList(id, arr){
+      const ul=qs(id); ul.innerHTML='';
+      arr.forEach((r,i)=>{
+        const li=document.createElement('li'); li.className='item';
+        const left=document.createElement('div'); left.style.flex='1';
+        const title=document.createElement('strong'); title.textContent=`${i+1}. ${r.name||'-'}`;
+        const small=document.createElement('div'); small.className='small'; small.textContent=`${formatTime(r.timestamp)} • ${r.phone||'-'}`;
+        left.appendChild(title); left.appendChild(small);
+
+        const right=document.createElement('div');
+        if(isAdmin){
+          const btn=document.createElement('button'); btn.className='btn danger'; btn.style.minHeight='36px'; btn.textContent='Unlist';
+          btn.addEventListener('click', ()=>{
+            if(!confirm('Hapus dari list?')) return;
+            const sheetName=id.charAt(0).toUpperCase()+id.slice(1); // players->Players
+            google.script.run.withSuccessHandler(()=>refresh()).removeEntry(sheetName, r.id, qs('adminPw').value);
+          });
+          right.appendChild(btn);
+        }
+
+        const row=document.createElement('div'); row.className='item-header';
+        row.appendChild(left); row.appendChild(right); li.appendChild(row); ul.appendChild(li);
+      });
+    }
+
+    // ====== SERVER SYNC ======
+    function refresh(){ google.script.run.withSuccessHandler(render).getAllData(); }
+
+    // ====== JOIN FLOW ======
+    function startJoin(type){
+      currentJoinType=type;
+      const title = type==='player' ? 'Masuk sebagai ⚽ Pemain'
+                  : type==='keeper' ? 'Masuk sebagai 🧤 Kiper'
+                  : 'Masuk ke ⏳ Waiting';
+      openModal(title);
+    }
+
+    function confirmJoin(){
+      const name=qs('name').value.trim(); const phone=qs('phone').value.trim();
+      if(!name) return alert('Isi nama dulu ya');
+      if(!canJoin()) return alert('Tunggu beberapa detik sebelum mencoba lagi');
+
+      const maxP=qs('maxPlayers').value, maxW=qs('maxWaiting').value;
+
+      if(currentJoinType==='player'){
+        google.script.run.withSuccessHandler(()=>{ toast('✅ Masuk sebagai Pemain'); closeModal(); refresh(); })
+          .addEntry('player', name, phone, maxP, maxW);
+      }else if(currentJoinType==='keeper'){
+        google.script.run.withSuccessHandler(()=>{ toast('✅ Masuk sebagai Kiper'); closeModal(); refresh(); })
+          .addEntry('keeper', name, phone, maxP, maxW);
+      }else{ // waiting
+        google.script.run.withSuccessHandler(()=>{ toast('✅ Masuk Waiting'); closeModal(); refresh(); })
+          .addEntry('player', name, phone, 9999, maxW);
+      }
+    }
+
+    // ====== ADMIN HANDLERS ======
+    function toggleAdminUI(){ setAdminVisibility(); refresh(); }
+
+    // verify on Enter
+    qs('adminPw').addEventListener('keydown', (e)=>{
+      if(e.key!=='Enter') return;
+      const v=qs('adminPw').value;
+      google.script.run.withSuccessHandler(res=>{
+        if(!res || typeof res!=='object'){ alert('Unexpected response'); return; }
+        if(res.ok){ isAdmin=true; toggleAdminUI(); toast('Admin OK'); }
+        else{ isAdmin=false; toggleAdminUI(); res.lockedUntil ? alert('Admin locked until: '+ new Date(res.lockedUntil).toLocaleString()) : alert(res.message||'Invalid password'); }
+      }).verifyAdmin(v);
+    });
+
+    qs('saveSettings').addEventListener('click', ()=>{
+      if(!isAdmin) return alert('Admin only');
+      const obj={ TeamName:qs('teamName').value, Place:qs('place').value, Kickoff:qs('kickoff').value, Date:qs('dateEvent').value };
+      google.script.run.withFailureHandler(e=>alert(e.message)).withSuccessHandler(()=>{ toast('Settings disimpan'); refresh(); }).setSettings(obj, qs('adminPw').value);
+    });
+
+    qs('resetAll').addEventListener('click', ()=>{
+      if(!isAdmin) return alert('Admin only');
+      if(!confirm('Yakin reset semua data?')) return;
+      // asumsi kamu punya fungsi importJson({players:[],keepers:[],waiting:[],settings:{}}, pw)
+      google.script.run.withSuccessHandler(()=>{ toast('Reset OK'); refresh(); }).importJson({players:[],keepers:[],waiting:[],settings:{}}, qs('adminPw').value);
+    });
+
+    qs('exportJson').addEventListener('click', ()=> google.script.run.withSuccessHandler(d=>downloadFile(JSON.stringify(d,null,2),'minisoccer.json','application/json')).exportJson());
+    qs('exportCsv').addEventListener('click',  ()=> google.script.run.withSuccessHandler(c=>downloadFile(c,'minisoccer.csv','text/csv')).exportCsv());
+    qs('exportPdf').addEventListener('click',  ()=> html2canvas(document.body).then(c=>{ const {jsPDF}=window.jspdf; const pdf=new jsPDF(); const img=c.toDataURL('image/png'); const w=pdf.internal.pageSize.getWidth(); const h=(c.height*w)/c.width; pdf.addImage(img,'PNG',0,0,w,h); pdf.save('minisoccer.pdf'); }));
+    qs('importJson').addEventListener('click', ()=>{
+      if(!isAdmin) return alert('Admin only');
+      const i=document.createElement('input'); i.type='file'; i.accept='.json';
+      i.onchange=async ()=>{
+        const f=i.files[0]; if(!f) return;
+        const t=await f.text();
+        try{ const parsed=JSON.parse(t);
+          google.script.run.withFailureHandler(e=>alert(e.message)).withSuccessHandler(()=>{ toast('Import OK'); setTimeout(refresh,400); }).importJson(parsed, qs('adminPw').value);
+        }catch(_){ alert('Invalid JSON'); }
+      };
+      i.click();
+    });
+
+    function downloadFile(data,name,type){ const b=new Blob([data],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
+
+    // ====== EVENTS ======
+    qs('tapJoinPlayer').addEventListener('click', ()=>startJoin('player'));
+    qs('tapJoinKeeper').addEventListener('click', ()=>startJoin('keeper'));
+    qs('tapJoinWaiting').addEventListener('click', ()=>startJoin('waiting'));
+
+    qs('btnConfirm').addEventListener('click', confirmJoin);
+    qs('btnCancel').addEventListener('click', closeModal);
+    qs('modalClose').addEventListener('click', closeModal);
+    qs('joinModal').addEventListener('click', (e)=>{ if(e.target===qs('joinModal')) closeModal(); });
+
+    // ====== INIT ======
+    setAdminVisibility();
+    refresh();
+    setInterval(refresh,15000);
+  </script>
 </body>
 </html>
